@@ -5,54 +5,126 @@ const config = {
   width: 800,
   height: 600,
   backgroundColor: '#87CEEB',
-  scene: {
-    preload,
-    create
-  }
+  scene: { preload, create }
 };
 
-const ingredients = [
-  { name: 'Banana', color: 0xFFE135 },
-  { name: 'Strawberry', color: 0xFF4C4C },
-  { name: 'Mango', color: 0xFFA500 },
-  { name: 'Buko', color: 0xFFFFFF },
-  { name: 'Peach', color: 0xFFB6A3 },
-  { name: 'Chocolate', color: 0x6B4226 }
-];
+const colorMap = {
+  Banana: 0xFFE135,
+  Strawberry: 0xFF4C4C,
+  Mango: 0xFFA500,
+  Buko: 0xFFFFFF,
+  Peach: 0xFFB6A3,
+  Chocolate: 0x6B4226
+};
 
-function preload() {
-  // Images will load here later
-}
+let currentOrder = null;
+let selectedIngredients = {}; // tracks what player has "added" so far
+let shakesData = [];
+let moneyText, orderText, statusText;
+let money = 0;
+
+function preload() {}
 
 function create() {
-  this.add.text(20, 20, 'StockPilot - Click an ingredient', {
-    fontSize: '20px',
-    color: '#000'
+  const scene = this;
+
+  statusText = this.add.text(20, 20, 'Loading...', { fontSize: '18px', color: '#000' });
+  moneyText = this.add.text(600, 20, `Money: ₱0`, { fontSize: '18px', color: '#000' });
+  orderText = this.add.text(20, 60, '', { fontSize: '16px', color: '#003' });
+
+  Promise.all([
+    fetch('http://127.0.0.1:8000/api/ingredients/').then(r => r.json()),
+    fetch('http://127.0.0.1:8000/api/shakes/').then(r => r.json())
+  ]).then(([ingredients, shakes]) => {
+    shakesData = shakes;
+    statusText.setText('Waiting for customer...');
+    renderIngredients(scene, ingredients);
+
+    const serveBtn = scene.add.text(600, 500, '[ Serve Shake ]', {
+      fontSize: '18px', color: '#fff', backgroundColor: '#28a745', padding: { x: 10, y: 6 }
+    }).setInteractive();
+    serveBtn.on('pointerdown', () => serveCustomer(scene));
+
+    const nextCustomerBtn = scene.add.text(600, 550, '[ Next Customer ]', {
+      fontSize: '16px', color: '#fff', backgroundColor: '#007bff', padding: { x: 10, y: 6 }
+    }).setInteractive();
+    nextCustomerBtn.on('pointerdown', () => spawnCustomer(scene));
+
+    spawnCustomer(scene);
+  }).catch(err => {
+    console.error(err);
+    statusText.setText('Failed to load data (check console)');
   });
+}
 
-  const startX = 80;
-  const spacing = 120;
-
+function renderIngredients(scene, ingredients) {
+  const startX = 80, spacing = 120;
   ingredients.forEach((item, index) => {
-    const x = startX + index * spacing;
-    const y = 300;
+    const x = startX + index * spacing, y = 300;
+    const color = colorMap[item.name] || 0xCCCCCC;
+    const circle = scene.add.circle(x, y, 40, color).setInteractive();
 
-    // Draw a colored circle as a placeholder sprite
-    const circle = this.add.circle(x, y, 40, item.color).setInteractive();
-
-    // Add label under it
-    this.add.text(x - 30, y + 50, item.name, {
-      fontSize: '14px',
-      color: '#000'
+    scene.add.text(x - 30, y + 50, item.name, { fontSize: '14px', color: '#000' });
+    const stockText = scene.add.text(x - 20, y + 70, `Stock: ${item.stock}`, {
+      fontSize: '12px', color: item.is_low_stock ? '#FF0000' : '#000'
     });
 
-    // Click handler
     circle.on('pointerdown', () => {
-      console.log(`Clicked: ${item.name}`);
+      selectedIngredients[item.id] = (selectedIngredients[item.id] || 0) + 1;
       circle.setScale(1.2);
-      this.time.delayedCall(150, () => circle.setScale(1));
+      scene.time.delayedCall(150, () => circle.setScale(1));
+      updateOrderProgress(scene);
     });
   });
+}
+
+function spawnCustomer(scene) {
+  if (!shakesData.length) return;
+  const randomShake = shakesData[Math.floor(Math.random() * shakesData.length)];
+  currentOrder = randomShake;
+  selectedIngredients = {};
+  statusText.setText(`Customer wants: ${randomShake.name} (₱${randomShake.price})`);
+  updateOrderProgress(scene);
+}
+
+function updateOrderProgress(scene) {
+  if (!currentOrder) return;
+  const needed = currentOrder.shakeingredient_set
+    .map(si => `${si.ingredient_name}: ${selectedIngredients[si.ingredient] || 0}/${si.amount_required}`)
+    .join('  |  ');
+  orderText.setText(`Order progress -> ${needed}`);
+}
+
+function serveCustomer(scene) {
+  if (!currentOrder) {
+    statusText.setText('No active customer!');
+    return;
+  }
+
+  fetch('http://127.0.0.1:8000/api/transactions/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ shake: currentOrder.id, quantity: 1 })
+  })
+    .then(res => {
+      if (!res.ok) return res.json().then(err => Promise.reject(err));
+      return res.json();
+    })
+    .then(data => {
+      money += parseFloat(data.total_price);
+      moneyText.setText(`Money: ₱${money.toFixed(2)}`);
+      statusText.setText(`Served! Earned ₱${data.total_price}`);
+      currentOrder = null;
+      orderText.setText('');
+      scene.time.delayedCall(1000, () => {
+        // refresh ingredient stock display by reloading scene
+        scene.scene.restart();
+      });
+    })
+    .catch(err => {
+      console.error(err);
+      statusText.setText('Not enough stock to serve this order!');
+    });
 }
 
 new Phaser.Game(config);
