@@ -1,0 +1,11 @@
+asgiref==3.12.1
+channels==4.3.2
+channels_redis==4.3.0
+Django==6.1.1
+djangorestframework==3.18.1
+msgpack==1.2.2
+psycopg2-binary==2.9.13
+python-dotenv==1.2.3
+redis==8.1.0
+sqlparse==0.6.0
+tzdata==2026.4
