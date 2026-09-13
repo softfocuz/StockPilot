@@ -92,12 +92,28 @@ function updateOrderProgress(scene) {
   const needed = currentOrder.shakeingredient_set
     .map(si => `${si.ingredient_name}: ${selectedIngredients[si.ingredient] || 0}/${si.amount_required}`)
     .join('  |  ');
-  orderText.setText(`Order progress -> ${needed}`);
+
+  const complete = isOrderComplete();
+  orderText.setText(`Order progress -> ${needed}${complete ? 'Ready to serve!' : ''}`);
+  orderText.setColor(complete ? '#008000' : '#003');
+}
+
+function isOrderComplete() {
+  if (!currentOrder) return false;
+  return currentOrder.shakeingredient_set.every(si => {
+    const selected = selectedIngredients[si.ingredient] || 0;
+    return selected >= si.amount_required;
+  });
 }
 
 function serveCustomer(scene) {
   if (!currentOrder) {
     statusText.setText('No active customer!');
+    return;
+  }
+
+  if (!isOrderComplete()) {
+    statusText.setText('Order incomplete! Add the right ingredients first.');
     return;
   }
 
@@ -117,7 +133,6 @@ function serveCustomer(scene) {
       currentOrder = null;
       orderText.setText('');
       scene.time.delayedCall(1000, () => {
-        // refresh ingredient stock display by reloading scene
         scene.scene.restart();
       });
     })

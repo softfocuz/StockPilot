@@ -19,4 +19,4 @@ class ShakeViewSet(viewsets.ModelViewSet):
 class TransactionViewSet(viewsets.ModelViewSet):
     queryset = Transaction.objects.all().order_by('-timestamp')
     serializer_class = TransactionSerializer
-    http_method_names = ['get']
+    http_method_names = ['get', 'post']
