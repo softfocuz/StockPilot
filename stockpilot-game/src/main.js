@@ -23,6 +23,9 @@ let shakesData = [];
 let moneyText, orderText, statusText;
 let money = 0;
 
+let customerTimer = null;
+const CUSTOMER_INTERVAL = 15000;
+
 function preload() {}
 
 function create() {
@@ -51,6 +54,11 @@ function create() {
     nextCustomerBtn.on('pointerdown', () => spawnCustomer(scene));
 
     spawnCustomer(scene);
+  customerTimer = scene.time.addEvent({
+    delay: CUSTOMER_INTERVAL,
+    callback: () => spawnCustomer(scene),
+    loop: true
+  });
   }).catch(err => {
     console.error(err);
     statusText.setText('Failed to load data (check console)');
@@ -80,10 +88,19 @@ function renderIngredients(scene, ingredients) {
 
 function spawnCustomer(scene) {
   if (!shakesData.length) return;
+
+  if (currentOrder) {
+    statusText.setText('Customer left unserved! New customer arriving...');
+  }
+
   const randomShake = shakesData[Math.floor(Math.random() * shakesData.length)];
   currentOrder = randomShake;
   selectedIngredients = {};
-  statusText.setText(`Customer wants: ${randomShake.name} (₱${randomShake.price})`);
+
+  scene.time.delayedCall(currentOrder ? 800 : 0, () => {
+    statusText.setText(`Customer wants: ${randomShake.name} (₱${randomShake.price})`);
+  });
+
   updateOrderProgress(scene);
 }
 
@@ -132,7 +149,10 @@ function serveCustomer(scene) {
       statusText.setText(`Served! Earned ₱${data.total_price}`);
       currentOrder = null;
       orderText.setText('');
-      scene.time.delayedCall(1000, () => {
+
+      // Reset the auto-spawn timer so next customer arrives a full interval from now
+      if (customerTimer) customerTimer.remove();
+      scene.time.delayedCall(1500, () => {
         scene.scene.restart();
       });
     })
