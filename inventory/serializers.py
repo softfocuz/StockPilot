@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Ingredient, Shake, ShakeIngredient, Transaction
+from .models import Ingredient, Shake, ShakeIngredient, Transaction, Store, Restock
 
 
 class IngredientSerializer(serializers.ModelSerializer):
@@ -37,3 +37,18 @@ class TransactionSerializer(serializers.ModelSerializer):
         model = Transaction
         fields = ['id', 'shake', 'shake_name', 'quantity', 'total_price', 'timestamp']
         read_only_fields = ['total_price', 'timestamp']
+
+
+class StoreSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Store
+        fields = ['id', 'balance']
+
+
+class RestockSerializer(serializers.ModelSerializer):
+    ingredient_name = serializers.CharField(source='ingredient.name', read_only=True)
+
+    class Meta:
+        model = Restock
+        fields = ['id', 'ingredient', 'ingredient_name', 'amount', 'cost_per_unit', 'total_cost', 'timestamp']
+        read_only_fields = ['total_cost', 'timestamp']
