@@ -1,5 +1,18 @@
 from django.db import models
 
+class Store(models.Model):
+    """Singleton model representing the store's current cash balance."""
+    balance = models.DecimalField(max_digits=10, decimal_places=2, default=1000.00)
+
+    def __str__(self):
+        return f"Store Balance: ₱{self.balance}"
+
+    @classmethod
+    def get_instance(cls):
+        """Ensures there's always exactly one Store record."""
+        store, created = cls.objects.get_or_create(id=1)
+        return store
+
 class Ingredient(models.Model):
     name = models.CharField(max_length=50, unique=True)
     stock = models.PositiveIntegerField(default=0)
@@ -63,16 +76,46 @@ class Transaction(models.Model):
                 )
 
     def save(self, *args, **kwargs):
-        # Calculate total price
         self.total_price = self.shake.price * self.quantity
-
-        # Run validation before deducting stock
         self.full_clean()
 
-        # Deduct stock for each ingredient used
         for shake_ingredient in self.shake.shakeingredient_set.all():
             ingredient = shake_ingredient.ingredient
             ingredient.stock -= shake_ingredient.amount_required * self.quantity
             ingredient.save()
+
+        # Add revenue to store balance
+        store = Store.get_instance()
+        store.balance += self.total_price
+        store.save()
+
+        super().save(*args, **kwargs)
+        
+class Restock(models.Model):
+    ingredient = models.ForeignKey(Ingredient, on_delete=models.CASCADE)
+    amount = models.PositiveIntegerField()
+    cost_per_unit = models.DecimalField(max_digits=6, decimal_places=2, default=5.00)
+    total_cost = models.DecimalField(max_digits=8, decimal_places=2, editable=False)
+    timestamp = models.DateTimeField(default=timezone.now)
+
+    def __str__(self):
+        return f"Restocked {self.amount} {self.ingredient.name} for ₱{self.total_cost}"
+
+    def clean(self):
+        store = Store.get_instance()
+        cost = self.cost_per_unit * self.amount
+        if store.balance < cost:
+            raise ValidationError(f"Not enough money. Need ₱{cost}, have ₱{store.balance}.")
+
+    def save(self, *args, **kwargs):
+        self.total_cost = self.cost_per_unit * self.amount
+        self.full_clean()
+
+        store = Store.get_instance()
+        store.balance -= self.total_cost
+        store.save()
+
+        self.ingredient.stock += self.amount
+        self.ingredient.save()
 
         super().save(*args, **kwargs)
