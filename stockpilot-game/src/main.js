@@ -1,5 +1,17 @@
 import Phaser from 'phaser';
 
+import bananaImg from './assets/ingredients/banana.png';
+import strawberryImg from './assets/ingredients/strawberry.png';
+import mangoImg from './assets/ingredients/mango.png';
+import bukoImg from './assets/ingredients/buko.png';
+import peachImg from './assets/ingredients/peach.png';
+import chocolateImg from './assets/ingredients/chocolate.png';
+import milkImg from './assets/ingredients/milk.png';
+import sugarImg from './assets/ingredients/sugar.png';
+import blenderImg from './assets/blender.png';
+import cupImg from './assets/cup.png';
+import customerImg from './assets/customer.png';
+
 const config = {
   type: Phaser.AUTO,
   width: window.innerWidth,
@@ -12,13 +24,15 @@ const config = {
   scene: { preload, create }
 };
 
-const colorMap = {
-  Banana: 0xFFE135,
-  Strawberry: 0xFF4C4C,
-  Mango: 0xFFA500,
-  Buko: 0xFFFFFF,
-  Peach: 0xFFB6A3,
-  Chocolate: 0x6B4226
+const imageMap = {
+  Banana: bananaImg,
+  Strawberries: strawberryImg,
+  Mango: mangoImg,
+  'Young Coconut': bukoImg,
+  Peach: peachImg,
+  Chocolate: chocolateImg,
+  Milk: milkImg,
+  Sugar: sugarImg
 };
 
 const costPerUnitMap = {
@@ -37,10 +51,9 @@ let speechBubble = null;
 let speechText = null;
 
 let currentOrder = null;
-let selectedIngredients = {}; // tracks what player has "added" so far
+let selectedIngredients = {};
 let shakesData = [];
 let moneyText, orderText, statusText;
-let money = 0;
 
 let inventoryPanelOpen = false;
 let inventoryPanelElements = [];
@@ -50,7 +63,15 @@ let ingredientsData = [];
 let customerTimer = null;
 const CUSTOMER_INTERVAL = 15000;
 
-function preload() {}
+function preload() {
+  Object.entries(imageMap).forEach(([name, path]) => {
+    this.load.image(name, path);
+  });
+
+  this.load.image('blender', blenderImg);
+  this.load.image('cup', cupImg);
+  this.load.image('customer', customerImg);
+}
 
 function create() {
   const scene = this;
@@ -103,18 +124,19 @@ function renderIngredients(scene, ingredients) {
   const startX = 80, spacing = 120;
   ingredients.forEach((item, index) => {
     const x = startX + index * spacing, y = 300;
-    const color = colorMap[item.name] || 0xCCCCCC;
-    const circle = scene.add.circle(x, y, 40, color).setInteractive();
+
+    const icon = scene.add.image(x, y, item.name).setInteractive();
+    icon.setDisplaySize(70, 70);
 
     scene.add.text(x - 30, y + 50, item.name, { fontSize: '14px', color: '#000' });
-    const stockText = scene.add.text(x - 20, y + 70, `Stock: ${item.stock}`, {
+    scene.add.text(x - 20, y + 70, `Stock: ${item.stock}`, {
       fontSize: '12px', color: item.is_low_stock ? '#FF0000' : '#000'
     });
 
-    circle.on('pointerdown', () => {
+    icon.on('pointerdown', () => {
       selectedIngredients[item.id] = (selectedIngredients[item.id] || 0) + 1;
-      circle.setScale(1.2);
-      scene.time.delayedCall(150, () => circle.setScale(1));
+      icon.setScale(1.3);
+      scene.time.delayedCall(150, () => icon.setScale(1));
       updateOrderProgress(scene);
     });
   });
@@ -135,21 +157,16 @@ function spawnCustomer(scene) {
   currentOrder = randomShake;
   selectedIngredients = {};
 
-  // Draw a simple customer (circle head + rectangle body as placeholder)
   const customerX = 400;
   const customerY = 150;
 
-  customerSprite = scene.add.container(customerX, customerY);
-  const body = scene.add.rectangle(0, 30, 50, 60, 0x4A90D9);
-  const head = scene.add.circle(0, -10, 20, 0xFFD9B3);
-  customerSprite.add([body, head]);
+  customerSprite = scene.add.image(customerX, customerY, 'customer');
+  customerSprite.setDisplaySize(100, 140);
 
-  // Speech bubble background
-  speechBubble = scene.add.rectangle(customerX + 90, customerY - 20, 180, 50, 0xFFFFFF)
+  speechBubble = scene.add.rectangle(customerX + 120, customerY - 20, 180, 50, 0xFFFFFF)
     .setStrokeStyle(2, 0x000000);
 
-  // Speech bubble text
-  speechText = scene.add.text(customerX + 10, customerY - 35, `Wants: ${randomShake.name}\n₱${randomShake.price}`, {
+  speechText = scene.add.text(customerX + 40, customerY - 35, `Wants: ${randomShake.name}\n₱${randomShake.price}`, {
     fontSize: '13px',
     color: '#000',
     wordWrap: { width: 160 }
@@ -179,7 +196,6 @@ function closeInventoryPanel() {
 function openInventoryPanel(scene) {
   inventoryPanelOpen = true;
 
-  // Background panel
   const bg = scene.add.rectangle(400, 300, 500, 400, 0x222222, 0.95).setDepth(10);
   inventoryPanelElements.push(bg);
 
@@ -198,11 +214,10 @@ function openInventoryPanel(scene) {
     fontSize: '16px', color: '#0f0'
   }).setDepth(11);
   inventoryPanelElements.push(balanceLabel);
-  inventoryPanelElements.balanceLabel = balanceLabel; 
 
   ingredientsData.forEach((item, index) => {
     const y = 190 + index * 35;
-    const costPerUnit = costPerUnitMap[item.name] || 5; 
+    const costPerUnit = costPerUnitMap[item.name] || 5;
 
     const label = scene.add.text(190, y, `${item.name}: ${item.stock} ${item.unit}`, {
       fontSize: '14px', color: item.is_low_stock ? '#ff5555' : '#fff'
@@ -229,7 +244,6 @@ function buyIngredient(scene, ingredientId, amount, costPerUnit) {
     })
     .then(() => {
       closeInventoryPanel();
-      // Refresh everything by restarting the scene
       scene.scene.restart();
     })
     .catch(err => {
@@ -245,7 +259,7 @@ function updateOrderProgress(scene) {
     .join('  |  ');
 
   const complete = isOrderComplete();
-  orderText.setText(`Order progress -> ${needed}${complete ? 'Ready to serve!' : ''}`);
+  orderText.setText(`Order progress -> ${needed}${complete ? '   Ready to serve!' : ''}`);
   orderText.setColor(complete ? '#008000' : '#003');
 }
 
@@ -278,8 +292,6 @@ function serveCustomer(scene) {
       return res.json();
     })
     .then(data => {
-      money += parseFloat(data.total_price);
-      moneyText.setText(`Money: ₱${money.toFixed(2)}`);
       statusText.setText(`Served! Earned ₱${data.total_price}`);
 
       if (customerSprite) customerSprite.destroy();
