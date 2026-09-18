@@ -4,7 +4,7 @@ from .models import Ingredient, Shake, ShakeIngredient, Transaction, Store, Rest
 
 @admin.register(Ingredient)
 class IngredientAdmin(admin.ModelAdmin):
-    list_display = ('name', 'stock', 'unit', 'is_low_stock')
+    list_display = ('name', 'stock', 'unit', 'cost_per_unit', 'is_low_stock')
 
 
 class ShakeIngredientInline(admin.TabularInline):
