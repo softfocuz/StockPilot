@@ -7,7 +7,7 @@ class IngredientSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Ingredient
-        fields = ['id', 'name', 'stock', 'unit', 'low_stock_threshold', 'is_low_stock']
+        fields = ['id', 'name', 'stock', 'unit', 'low_stock_threshold', 'cost_per_unit', 'is_low_stock']
 
 
 class ShakeIngredientSerializer(serializers.ModelSerializer):
