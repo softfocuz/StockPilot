@@ -1,16 +1,34 @@
 import Phaser from 'phaser';
 
-import bananaImg from './assets/ingredients/banana.png';
-import strawberryImg from './assets/ingredients/strawberry.png';
-import mangoImg from './assets/ingredients/mango.png';
-import bukoImg from './assets/ingredients/buko.png';
-import peachImg from './assets/ingredients/peach.png';
-import chocolateImg from './assets/ingredients/chocolate.png';
-import milkImg from './assets/ingredients/milk.png';
-import sugarImg from './assets/ingredients/sugar.png';
-import blenderImg from './assets/blender.png';
-import cupImg from './assets/cup.png';
-import customerImg from './assets/customer.png';
+// Store images
+import avocadoStoreImg from './assets/store/avocado.png';
+import bananaStoreImg from './assets/store/banana.png';
+import coconutStoreImg from './assets/store/coconut.png';
+import mangoStoreImg from './assets/store/mango.png';
+import peachStoreImg from './assets/store/peach.png';
+import pineappleStoreImg from './assets/store/pineapple.png';
+import strawberryStoreImg from './assets/store/strawberry.png';
+import cupBoxImg from './assets/store/cup-box.png';
+
+// Ingredients (prepped) images 
+import avocadoPeelImg from './assets/ingredients/avocado-peel.png';
+import bananaPeelImg from './assets/ingredients/banana-peel.png';
+import coconutPeelImg from './assets/ingredients/coconut-peel.png';
+import mangoPeelImg from './assets/ingredients/mango-peel.png';
+import peachPeelImg from './assets/ingredients/peach-peel.png';
+import pineapplePeelImg from './assets/ingredients/pineapple-peel.png';
+import strawberryPeelImg from './assets/ingredients/strawberry-peel.png';
+import milkPackImg from './assets/ingredients/milk-pack.png';
+import milkReadyImg from './assets/ingredients/milk-ready.png';
+import sugarPackImg from './assets/ingredients/sugar-pack.png';
+import finalProductImg from './assets/ingredients/mmm.png';
+
+// Customers
+import customer1 from './assets/customers/customer_1.png';
+import customer2 from './assets/customers/customer_2.png';
+import customer3 from './assets/customers/customer_3.png';
+import customer4 from './assets/customers/customer_4.png';
+import customer5 from './assets/customers/customer_5.png';
 
 const config = {
   type: Phaser.AUTO,
@@ -24,27 +42,35 @@ const config = {
   scene: { preload, create }
 };
 
-const imageMap = {
-  Banana: bananaImg,
-  Strawberries: strawberryImg,
-  Mango: mangoImg,
-  'Young Coconut': bukoImg,
-  Peach: peachImg,
-  Chocolate: chocolateImg,
-  Milk: milkImg,
-  Sugar: sugarImg
+const preppedImageMap = {
+  Avocado: avocadoPeelImg,
+  Banana: bananaPeelImg,
+  Coconut: coconutPeelImg,
+  Mango: mangoPeelImg,
+  Peach: peachPeelImg,
+  Pineapple: pineapplePeelImg,
+  Strawberry: strawberryPeelImg,
+  Milk: milkReadyImg,
+  Sugar: sugarPackImg,
+  Straw: strawPackImg,
+  Cup: cupBoxImg
 };
 
-const costPerUnitMap = {
-  Banana: 3,
-  Strawberries: 8,
-  Mango: 6,
-  'Young Coconut': 10,
-  Peach: 7,
-  Chocolate: 15,
-  Milk: 4,
-  Sugar: 2
+const storeImageMap = {
+  Avocado: avocadoStoreImg,
+  Banana: bananaStoreImg,
+  Coconut: coconutStoreImg,
+  Mango: mangoStoreImg,
+  Peach: peachStoreImg,
+  Pineapple: pineappleStoreImg,
+  Strawberry: strawberryStoreImg,
+  Milk: milkPackImg,
+  Sugar: sugarPackImg,
+  Straw: strawPackImg,
+  Cup: cupBoxImg
 };
+
+const customerImages = [customer1, customer2, customer3, customer4, customer5];
 
 let customerSprite = null;
 let speechBubble = null;
@@ -64,13 +90,20 @@ let customerTimer = null;
 const CUSTOMER_INTERVAL = 15000;
 
 function preload() {
-  Object.entries(imageMap).forEach(([name, path]) => {
-    this.load.image(name, path);
+  Object.entries(preppedImageMap).forEach(([name, path]) => {
+    this.load.image(`prepped_${name}`, path);
   });
 
-  this.load.image('blender', blenderImg);
-  this.load.image('cup', cupImg);
-  this.load.image('customer', customerImg);
+  Object.entries(storeImageMap).forEach(([name, path]) => {
+    this.load.image(`store_${name}`, path);
+  });
+
+  this.load.image('finalProduct', finalProductImg);
+  this.load.image('cupBox', cupBoxImg);
+
+  customerImages.forEach((img, i) => {
+    this.load.image(`customer_${i + 1}`, img);
+  });
 }
 
 function create() {
@@ -125,7 +158,7 @@ function renderIngredients(scene, ingredients) {
   ingredients.forEach((item, index) => {
     const x = startX + index * spacing, y = 300;
 
-    const icon = scene.add.image(x, y, item.name).setInteractive();
+    const icon = scene.add.image(x, y, `prepped_${item.name}`).setInteractive();
     icon.setDisplaySize(70, 70);
 
     scene.add.text(x - 30, y + 50, item.name, { fontSize: '14px', color: '#000' });
@@ -159,8 +192,9 @@ function spawnCustomer(scene) {
 
   const customerX = 400;
   const customerY = 150;
+  const randomCustomerKey = `customer_${Math.floor(Math.random() * 5) + 1}`;
 
-  customerSprite = scene.add.image(customerX, customerY, 'customer');
+  customerSprite = scene.add.image(customerX, customerY, randomCustomerKey);
   customerSprite.setDisplaySize(100, 140);
 
   speechBubble = scene.add.rectangle(customerX + 120, customerY - 20, 180, 50, 0xFFFFFF)
@@ -217,7 +251,10 @@ function openInventoryPanel(scene) {
 
   ingredientsData.forEach((item, index) => {
     const y = 190 + index * 35;
-    const costPerUnit = costPerUnitMap[item.name] || 5;
+    const costPerUnit = parseFloat(item.cost_per_unit);
+
+    const icon = scene.add.image(160, y + 8, `store_${item.name}`).setDisplaySize(30, 30).setDepth(11);
+    inventoryPanelElements.push(icon);
 
     const label = scene.add.text(190, y, `${item.name}: ${item.stock} ${item.unit}`, {
       fontSize: '14px', color: item.is_low_stock ? '#ff5555' : '#fff'
