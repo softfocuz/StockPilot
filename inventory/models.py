@@ -18,6 +18,7 @@ class Ingredient(models.Model):
     stock = models.PositiveIntegerField(default=0)
     unit = models.CharField(max_length=20, default='kg')
     low_stock_threshold = models.PositiveIntegerField(default=5)
+    cost_per_unit = models.DecimalField(max_digits=6, decimal_places=2, default=20.00)
 
     def __str__(self):
         return f"{self.name} ({self.stock} {self.unit})"
